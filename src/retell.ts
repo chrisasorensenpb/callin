@@ -266,24 +266,26 @@ async function handleCaptureVertical(
     return { result: 'Please verify your code first.' };
   }
 
-  const vertical = normalizeVertical(String(args.vertical || ''));
+  // Accept any industry - just clean it up a bit
+  const rawVertical = String(args.vertical || 'other').trim();
+  const vertical = rawVertical.toLowerCase().replace(/\s+/g, '_');
 
   await createEvent(state.sessionId, 'vertical_selected', {
     vertical,
+    rawVertical,
     timestamp: new Date().toISOString(),
   });
 
   emitToSession(state.sessionId, 'vertical_selected', {
     vertical,
+    displayName: rawVertical,
     timestamp: new Date().toISOString(),
   });
 
   await extendSession(state.sessionId);
 
-  const verticalDisplay = vertical.replace(/_/g, ' ');
-
   return {
-    result: `Great, ${verticalDisplay}! Check your browser - you should see it updating. Now, what's your biggest pain point with outbound calling?`,
+    result: `Great, ${rawVertical}! Check your browser - you should see it updating. Now, what's your biggest challenge with outbound calling?`,
     information: { vertical },
   };
 }
@@ -297,24 +299,43 @@ async function handleCapturePain(
     return { result: 'Please verify your code first.' };
   }
 
-  const pain = normalizePain(String(args.pain || ''));
+  const rawPain = String(args.pain || '').trim();
+  const painLower = rawPain.toLowerCase();
+
+  // Check if it's spam-related
+  const isSpam = painLower.includes('spam') ||
+                 painLower.includes('flag') ||
+                 painLower.includes('blocked') ||
+                 painLower.includes('scam likely');
+
+  const pain = isSpam ? 'spam_flags' : painLower.replace(/\s+/g, '_');
 
   await createEvent(state.sessionId, 'pain_selected', {
     pain,
+    rawPain,
+    isSpam,
     timestamp: new Date().toISOString(),
   });
 
   emitToSession(state.sessionId, 'pain_selected', {
     pain,
+    displayName: rawPain,
+    isSpam,
     timestamp: new Date().toISOString(),
   });
 
   await extendSession(state.sessionId);
 
-  const painDisplay = pain.replace(/_/g, ' ');
+  // Different response for spam vs other pain points
+  if (isSpam) {
+    return {
+      result: 'Spam flags - check your screen right now. Does that look familiar? We can fix that. Now let me show you our power dialer - what\'s your phone number?',
+      information: { pain, isSpam: true },
+    };
+  }
 
   return {
-    result: `${painDisplay} - we hear that a lot! Check your browser, you should see it updating. Now here's the exciting part - I'm going to demonstrate our power dialer by calling you back instantly. What's your phone number?`,
+    result: `${rawPain} - we hear that a lot! Check your browser. Now here's the exciting part - I'm going to demonstrate our power dialer by calling you back instantly. What's your phone number?`,
     information: { pain },
   };
 }

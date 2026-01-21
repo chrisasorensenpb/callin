@@ -13,7 +13,10 @@ interface DemoState {
   callerName: string | null;
   callerPhone: string | null;
   vertical: string | null;
+  verticalDisplay: string | null;
   pain: string | null;
+  painDisplay: string | null;
+  showSpamImage: boolean;
   showCalendar: boolean;
   appointment: { date: string; time: string } | null;
 }
@@ -38,24 +41,26 @@ function formatPhoneDisplay(phone: string): string {
   return phone;
 }
 
-function formatVertical(vertical: string): string {
+function formatVertical(vertical: string, displayName?: string | null): string {
+  if (displayName) return displayName;
   const labels: Record<string, string> = {
     real_estate: 'Real Estate',
     insurance: 'Insurance',
     mortgage: 'Mortgage',
     other: 'Other',
   };
-  return labels[vertical] || vertical;
+  return labels[vertical] || vertical.replace(/_/g, ' ');
 }
 
-function formatPain(pain: string): string {
+function formatPain(pain: string, displayName?: string | null): string {
+  if (displayName) return displayName;
   const labels: Record<string, string> = {
     spam_flags: 'Spam Flags',
     awkward_delay: 'Awkward Delay',
     low_answer_rates: 'Low Answer Rates',
     speed: 'Speed / Efficiency',
   };
-  return labels[pain] || pain;
+  return labels[pain] || pain.replace(/_/g, ' ');
 }
 
 function App() {
@@ -67,7 +72,10 @@ function App() {
     callerName: null,
     callerPhone: null,
     vertical: null,
+    verticalDisplay: null,
     pain: null,
+    painDisplay: null,
+    showSpamImage: false,
     showCalendar: false,
     appointment: null,
   });
@@ -134,19 +142,22 @@ function App() {
       addEvent('paired', data);
     });
 
-    socket.on('vertical_selected', (data: { vertical: string }) => {
+    socket.on('vertical_selected', (data: { vertical: string; displayName?: string }) => {
       setDemoState(prev => ({
         ...prev,
         phase: 'questions',
         vertical: data.vertical,
+        verticalDisplay: data.displayName || data.vertical,
       }));
       addEvent('vertical_selected', data);
     });
 
-    socket.on('pain_selected', (data: { pain: string }) => {
+    socket.on('pain_selected', (data: { pain: string; displayName?: string; isSpam?: boolean }) => {
       setDemoState(prev => ({
         ...prev,
         pain: data.pain,
+        painDisplay: data.displayName || data.pain,
+        showSpamImage: data.isSpam || false,
       }));
       addEvent('pain_selected', data);
     });
@@ -360,7 +371,7 @@ function App() {
                 <div className="card-icon">{demoState.vertical ? '✓' : '1'}</div>
                 <div className="card-content">
                   <h3>Industry</h3>
-                  <p>{demoState.vertical ? formatVertical(demoState.vertical) : 'Listening...'}</p>
+                  <p>{demoState.vertical ? formatVertical(demoState.vertical, demoState.verticalDisplay) : 'Listening...'}</p>
                 </div>
               </div>
 
@@ -368,7 +379,7 @@ function App() {
                 <div className="card-icon">{demoState.pain ? '✓' : '2'}</div>
                 <div className="card-content">
                   <h3>Pain Point</h3>
-                  <p>{demoState.pain ? formatPain(demoState.pain) : 'Waiting...'}</p>
+                  <p>{demoState.pain ? formatPain(demoState.pain, demoState.painDisplay) : 'Waiting...'}</p>
                 </div>
               </div>
 
@@ -380,6 +391,26 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {/* Spam Image - Shows when user mentions spam as their pain point */}
+            {demoState.showSpamImage && (
+              <div className="spam-image-container">
+                <div className="spam-phone-mockup">
+                  <div className="phone-screen">
+                    <div className="incoming-call">
+                      <div className="spam-warning">⚠️ SPAM LIKELY</div>
+                      <div className="caller-id">Unknown Caller</div>
+                      <div className="phone-number">(555) 123-4567</div>
+                      <div className="call-actions">
+                        <div className="decline-btn">Decline</div>
+                        <div className="accept-btn">Accept</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p className="spam-caption">Look familiar? We can fix this.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -450,11 +481,11 @@ function App() {
                   </div>
                   <div className="info-row">
                     <label>Industry</label>
-                    <span>{demoState.vertical ? formatVertical(demoState.vertical) : '—'}</span>
+                    <span>{demoState.vertical ? formatVertical(demoState.vertical, demoState.verticalDisplay) : '—'}</span>
                   </div>
                   <div className="info-row">
                     <label>Pain Point</label>
-                    <span>{demoState.pain ? formatPain(demoState.pain) : '—'}</span>
+                    <span>{demoState.pain ? formatPain(demoState.pain, demoState.painDisplay) : '—'}</span>
                   </div>
                   <div className="info-row">
                     <label>Status</label>
