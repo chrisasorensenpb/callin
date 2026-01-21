@@ -38,7 +38,8 @@ router.post('/session', async (req: Request, res: Response) => {
 // Get session status
 router.get('/session/:id', async (req: Request, res: Response) => {
   try {
-    const session = await getSession(req.params.id);
+    const sessionId = req.params.id as string;
+    const session = await getSession(sessionId);
 
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });

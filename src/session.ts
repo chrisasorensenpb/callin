@@ -173,7 +173,7 @@ export async function createEvent(
     data: {
       sessionId,
       type,
-      value,
+      value: value as object,
     },
   });
 }
