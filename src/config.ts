@@ -46,3 +46,42 @@ export function validateConfig(): void {
     console.warn(`Warning: Missing environment variables: ${missing.join(', ')}`);
   }
 }
+
+export async function validateTwilioCredentials(): Promise<boolean> {
+  if (!config.twilio.accountSid || !config.twilio.authToken) {
+    console.error('Twilio credentials not configured');
+    return false;
+  }
+
+  try {
+    // Use native fetch to test Twilio credentials
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${config.twilio.accountSid}.json`;
+    const auth = Buffer.from(`${config.twilio.accountSid}:${config.twilio.authToken}`).toString('base64');
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json() as { friendly_name?: string; status?: string };
+      console.log('✓ Twilio credentials valid:', {
+        accountName: data.friendly_name,
+        status: data.status,
+      });
+      return true;
+    } else {
+      const errorData = await response.json() as { code?: number; message?: string };
+      console.error('✗ Twilio credentials invalid:', {
+        status: response.status,
+        code: errorData.code,
+        message: errorData.message,
+      });
+      return false;
+    }
+  } catch (error) {
+    console.error('✗ Failed to validate Twilio credentials:', error);
+    return false;
+  }
+}

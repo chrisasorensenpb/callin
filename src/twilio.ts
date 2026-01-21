@@ -541,6 +541,14 @@ async function initiateCallback(sessionId: string, phoneNumber: string) {
     throw new Error('Session not found');
   }
 
+  // Log Twilio config for debugging (mask sensitive data)
+  console.log('Twilio config check:', {
+    accountSid: config.twilio.accountSid ? `${config.twilio.accountSid.slice(0, 10)}...` : 'MISSING',
+    authToken: config.twilio.authToken ? `${config.twilio.authToken.slice(0, 8)}...` : 'MISSING',
+    phoneNumber: config.twilio.phoneNumber || 'MISSING',
+    baseUrl: config.baseUrl,
+  });
+
   // Emit dialing event
   await createEvent(sessionId, 'callback_dialing', {
     phoneNumber: maskPhone(phoneNumber),
@@ -553,22 +561,32 @@ async function initiateCallback(sessionId: string, phoneNumber: string) {
     timestamp: new Date().toISOString(),
   });
 
-  // Place the outbound call
-  const call = await twilioClient.calls.create({
-    to: phoneNumber,
-    from: config.twilio.phoneNumber,
-    url: `${config.baseUrl}/twilio/callback-answer?sessionId=${sessionId}`,
-    statusCallback: `${config.baseUrl}/twilio/callback-status?sessionId=${sessionId}`,
-    statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-    statusCallbackMethod: 'POST',
-  });
+  try {
+    // Place the outbound call
+    const call = await twilioClient.calls.create({
+      to: phoneNumber,
+      from: config.twilio.phoneNumber,
+      url: `${config.baseUrl}/twilio/callback-answer?sessionId=${sessionId}`,
+      statusCallback: `${config.baseUrl}/twilio/callback-status?sessionId=${sessionId}`,
+      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+      statusCallbackMethod: 'POST',
+    });
 
-  console.log(`Callback initiated: ${call.sid} to ${phoneNumber}`);
+    console.log(`Callback initiated: ${call.sid} to ${phoneNumber}`);
 
-  await createEvent(sessionId, 'callback_initiated', {
-    callSid: call.sid,
-    timestamp: new Date().toISOString(),
-  });
+    await createEvent(sessionId, 'callback_initiated', {
+      callSid: call.sid,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: unknown) {
+    const twilioError = error as { code?: number; status?: number; message?: string };
+    console.error('Twilio API error:', {
+      code: twilioError.code,
+      status: twilioError.status,
+      message: twilioError.message,
+    });
+    throw error;
+  }
 }
 
 // Handle callback answer

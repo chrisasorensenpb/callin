@@ -5,7 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { config, validateConfig } from './config.js';
+import { config, validateConfig, validateTwilioCredentials } from './config.js';
 import { connectDatabase, disconnectDatabase } from './db.js';
 import { initializeWebSocket } from './websocket.js';
 import { cleanupExpiredSessions } from './session.js';
@@ -95,10 +95,13 @@ async function main() {
   process.on('SIGTERM', shutdown);
 
   // Start server
-  httpServer.listen(config.port, () => {
+  httpServer.listen(config.port, async () => {
     console.log(`Server running on port ${config.port}`);
     console.log(`Environment: ${config.nodeEnv}`);
     console.log(`Twilio phone: ${config.twilio.phoneNumber || 'Not configured'}`);
+
+    // Validate Twilio credentials on startup
+    await validateTwilioCredentials();
   });
 }
 
