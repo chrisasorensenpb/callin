@@ -5,12 +5,13 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { config, validateConfig, validateTwilioCredentials } from './config.js';
+import { config, validateConfig, validateTwilioCredentials, validateRetellCredentials } from './config.js';
 import { connectDatabase, disconnectDatabase } from './db.js';
 import { initializeWebSocket } from './websocket.js';
 import { cleanupExpiredSessions } from './session.js';
 import apiRoutes from './api.js';
 import twilioRoutes from './twilio.js';
+import retellRoutes from './retell.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,8 +50,11 @@ async function main() {
   // API routes
   app.use('/api', apiRoutes);
 
-  // Twilio webhooks
+  // Twilio webhooks (legacy, kept for rollback)
   app.use('/twilio', twilioRoutes);
+
+  // Retell AI webhooks
+  app.use('/retell', retellRoutes);
 
   // Serve static files
   const publicPath = config.nodeEnv === 'production'
@@ -60,8 +64,8 @@ async function main() {
 
   // SPA fallback
   app.get('*', (req, res) => {
-    // Don't serve index.html for API or Twilio routes
-    if (req.path.startsWith('/api') || req.path.startsWith('/twilio')) {
+    // Don't serve index.html for API, Twilio, or Retell routes
+    if (req.path.startsWith('/api') || req.path.startsWith('/twilio') || req.path.startsWith('/retell')) {
       return res.status(404).json({ error: 'Not found' });
     }
     res.sendFile(path.join(publicPath, 'index.html'));
@@ -99,9 +103,11 @@ async function main() {
     console.log(`Server running on port ${config.port}`);
     console.log(`Environment: ${config.nodeEnv}`);
     console.log(`Twilio phone: ${config.twilio.phoneNumber || 'Not configured'}`);
+    console.log(`Retell agent: ${config.retell.agentId || 'Not configured'}`);
 
-    // Validate Twilio credentials on startup
+    // Validate credentials on startup
     await validateTwilioCredentials();
+    await validateRetellCredentials();
   });
 }
 

@@ -22,6 +22,12 @@ services:
         value: https://callin-6bcc.onrender.com
       - key: SESSION_SECRET
         generateValue: true
+      - key: RETELL_API_KEY
+        sync: false
+      - key: RETELL_AGENT_ID
+        sync: false
+      - key: RETELL_CALLBACK_AGENT_ID
+        sync: false
 
 databases:
   - name: callin-db

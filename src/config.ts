@@ -17,6 +17,12 @@ export const config = {
     phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
   },
 
+  retell: {
+    apiKey: process.env.RETELL_API_KEY || '',
+    agentId: process.env.RETELL_AGENT_ID || '',
+    callbackAgentId: process.env.RETELL_CALLBACK_AGENT_ID || '',
+  },
+
   session: {
     secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     expiryMinutes: parseInt(process.env.SESSION_EXPIRY_MINUTES || '10', 10),
@@ -30,13 +36,22 @@ export const config = {
 };
 
 export function validateConfig(): void {
-  const required = [
+  // Twilio is still required for SIP trunk and outbound calls
+  const twilioRequired = [
     'TWILIO_ACCOUNT_SID',
     'TWILIO_AUTH_TOKEN',
     'TWILIO_PHONE_NUMBER',
   ];
 
-  const missing = required.filter(key => !process.env[key]);
+  // Retell is required for voice AI
+  const retellRequired = [
+    'RETELL_API_KEY',
+    'RETELL_AGENT_ID',
+  ];
+
+  const missingTwilio = twilioRequired.filter(key => !process.env[key]);
+  const missingRetell = retellRequired.filter(key => !process.env[key]);
+  const missing = [...missingTwilio, ...missingRetell];
 
   if (missing.length > 0 && config.nodeEnv === 'production') {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
@@ -44,6 +59,36 @@ export function validateConfig(): void {
 
   if (missing.length > 0) {
     console.warn(`Warning: Missing environment variables: ${missing.join(', ')}`);
+  }
+}
+
+export async function validateRetellCredentials(): Promise<boolean> {
+  if (!config.retell.apiKey) {
+    console.error('Retell API key not configured');
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://api.retellai.com/v2/agent', {
+      headers: {
+        'Authorization': `Bearer ${config.retell.apiKey}`,
+      },
+    });
+
+    if (response.ok) {
+      console.log('✓ Retell credentials valid');
+      return true;
+    } else {
+      const errorData = await response.json() as { error?: string; message?: string };
+      console.error('✗ Retell credentials invalid:', {
+        status: response.status,
+        error: errorData.error || errorData.message,
+      });
+      return false;
+    }
+  } catch (error) {
+    console.error('✗ Failed to validate Retell credentials:', error);
+    return false;
   }
 }
 
