@@ -3,8 +3,8 @@ services:
     name: callin
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma db push --accept-data-loss && npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -19,10 +19,7 @@ services:
       - key: TWILIO_PHONE_NUMBER
         sync: false
       - key: BASE_URL
-        fromService:
-          type: web
-          name: callin
-          property: host
+        value: https://callin-6bcc.onrender.com
       - key: SESSION_SECRET
         generateValue: true
 
