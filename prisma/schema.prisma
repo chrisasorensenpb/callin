@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  CREATED
+  PAIRED
+  ACTIVE
+  EXPIRED
+}
+
+model Session {
+  id            String        @id @default(uuid())
+  pairCode      String        @db.VarChar(4)
+  browserToken  String        @unique
+  status        SessionStatus @default(CREATED)
+  createdAt     DateTime      @default(now())
+  expiresAt     DateTime
+  activeUntil   DateTime?
+  callerNumber  String?       @db.VarChar(20)
+  callerName    String?       @db.VarChar(100)
+  callSid       String?       @db.VarChar(50)
+  events        Event[]
+
+  @@index([pairCode, status])
+  @@index([browserToken])
+  @@index([expiresAt])
+}
+
+model Event {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type      String   @db.VarChar(50)
+  value     Json
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([type])
+}
+
+model RateLimit {
+  id            String   @id @default(uuid())
+  callerNumber  String   @unique @db.VarChar(20)
+  failedAttempts Int     @default(0)
+  lockedUntil   DateTime?
+  lastAttemptAt DateTime @default(now())
+
+  @@index([callerNumber])
+}
